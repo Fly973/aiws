@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <title>家访路线规划</title>
+    <title>路线规划</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -509,7 +509,7 @@
     <div id="keyModal" class="modal-overlay">
         <div class="modal">
             <div class="modal-header">
-                <h2>家访路线规划</h2>
+                <h2>路线规划</h2>
                 <p>多目的地智能导航 · 自驾/公交/步行</p>
             </div>
             <div class="modal-body">
@@ -585,7 +585,7 @@
         <!-- Sidebar -->
         <aside id="sidebar" role="complementary" aria-label="路线规划控制面板">
             <div class="sidebar-header">
-                <h1>家访路线规划</h1>
+                <h1>路线规划</h1>
                 <div class="header-actions">
                     <button id="themeToggleBtn" class="btn-text" title="切换主题" aria-label="切换明暗主题">🌙</button>
                     <button id="changeKeyBtn" class="btn-text no-print">更换密钥</button>
@@ -859,6 +859,28 @@
             if (b) b.remove();
         }
 
+        // 地图加载失败的可见错误提示（持久显示，便于排查）
+        function showMapError(title, detail) {
+            let box = document.getElementById('mapErrorBox');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'mapErrorBox';
+                box.style.cssText = 'position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:9999;max-width:560px;padding:16px 18px;background:#2d1a1a;border:1px solid #ff6b6b;border-radius:10px;color:#ffd7d7;font-size:13px;line-height:1.8;box-shadow:0 8px 28px rgba(0,0,0,.45);';
+                document.body.appendChild(box);
+            }
+            const steps = [
+                '1. Key 类型必须是「Web端(JS API)」，不是「Web服务」',
+                '2. 高德控制台 → Key → 域名白名单需包含当前访问域名（本地测试要加 localhost）',
+                '3. 2021年12月后创建的 Key 必须配置「安全密钥」并在页面填入',
+                '4. 检查网络能否访问 webapi.amap.com'
+            ].join('<br>');
+            box.innerHTML = '<div style="font-weight:700;font-size:15px;margin-bottom:8px;">❌ ' + title + '</div>' +
+                (detail ? '<div style="margin-bottom:10px;color:#ff9d9d;">' + detail + '</div>' : '') +
+                '<div style="color:#e0b8b8;">排查步骤：<br>' + steps + '</div>' +
+                '<div style="margin-top:12px;text-align:right;"><button onclick="document.getElementById(\'mapErrorBox\').remove();document.getElementById(\'keyModal\').classList.remove(\'hidden\');" style="padding:6px 14px;border:1px solid #ff6b6b;background:transparent;color:#ffd7d7;border-radius:6px;cursor:pointer;">重新设置密钥</button></div>';
+            box.style.display = 'block';
+        }
+
         function handleKeyConfirm() {
             const key = document.getElementById('apiKeyInput').value.trim();
             const sec = document.getElementById('securityCodeInput').value.trim();
@@ -876,7 +898,8 @@
             script.src = `https://webapi.amap.com/maps?v=2.0&key=${key}&plugin=AMap.PlaceSearch,AMap.AutoComplete,AMap.Driving,AMap.Transfer,AMap.Walking,AMap.DistrictSearch,AMap.TrafficLayer`;
             script.onload = () => {
                 if (typeof AMap === 'undefined') {
-                    showToast('地图加载失败：AMap 对象未定义。最可能原因：Key 类型选了「Web服务」而非「Web端(JS API)」，或 Key 域名白名单未包含 localhost', 'error');
+                    showToast('地图加载失败：AMap 对象未定义', 'error');
+                    showMapError('地图加载失败：AMap 对象未定义', '当前访问地址：' + location.host + '。Key 未被授权在此域名下使用，或 Key 类型错误。');
                     loadOfflineCache();
                     return;
                 }
@@ -891,6 +914,7 @@
                 } catch (e) {
                     console.error('初始化失败:', e);
                     showToast('初始化报错: ' + (e.message || e) + ' — 可能是安全密钥缺失或 Key 类型错误', 'error');
+                    showMapError('地图初始化报错', '错误信息：' + (e.message || e));
                     // 显示 app 以便用户能看到错误
                     document.getElementById('keyModal').classList.add('hidden');
                     document.getElementById('app').classList.remove('hidden');
@@ -899,6 +923,7 @@
             };
             script.onerror = () => {
                 showToast('脚本加载失败——检查网络连接，或 Key 是否已被禁用', 'error');
+                showMapError('高德地图脚本加载失败', '无法从 webapi.amap.com 加载脚本，请检查网络连接、代理或防火墙设置。');
                 loadOfflineCache();
             };
             document.head.appendChild(script);
