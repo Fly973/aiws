@@ -645,7 +645,6 @@
                     <div class="ocr-actions no-print">
                         <button id="ocrBtn" class="btn-ocr">📷 从截图识别地址</button>
                         <input type="file" id="ocrFileInput" accept="image/*" class="hidden">
-                        <button id="importListBtn" class="btn-ocr">📋 导入名单(20)</button>
                         <span class="ocr-hint">可粘贴截图(Ctrl+V)或点击按钮选图</span>
                     </div>
                 </div>
@@ -970,12 +969,12 @@
                     select.appendChild(opt);
                 });
                 const zj = Array.from(select.options).find(o => o.textContent === '浙江省');
-                if (zj) { select.value = zj.value; loadCities(zj.value); }
+                if (zj) { select.value = zj.value; loadCities(zj.value, '杭州市'); }
                 else initSearchService();
             });
         }
 
-        function loadCities(provinceAdcode) {
+        function loadCities(provinceAdcode, defaultCity) {
             if (!provinceAdcode) { resetCity(); resetDistrict(); initSearchService(); return; }
             districtSearch.search(provinceAdcode, (status, result) => {
                 if (status !== 'complete' || !result.districtList || !result.districtList[0]) { resetCity(); return; }
@@ -988,7 +987,13 @@
                     opt.value = d.adcode; opt.textContent = d.name; opt.dataset.name = d.name;
                     select.appendChild(opt);
                 });
-                resetDistrict(); initSearchService();
+                // 默认选中指定城市（仅初始加载时传入，如杭州市）
+                if (defaultCity) {
+                    const cityOpt = Array.from(select.options).find(o => o.textContent === defaultCity);
+                    if (cityOpt) select.value = cityOpt.value;
+                }
+                if (select.value) loadDistricts(select.value);
+                else { resetDistrict(); initSearchService(); }
             });
         }
 
@@ -2091,78 +2096,6 @@
             if (failed.length > 0) showToast('未能识别: ' + failed.join('、'), 'error');
             if (added > 0 && hasPlannedRoute) planRoute();
         }
-    </script>
-    <!-- ===== 定制注入：预填名单 + 默认搜索范围西宁市 ===== -->
-    <script>
-    (function () {
-        'use strict';
-        // 20 个清洗后的目的地（人名/单元室号已去除，便于 POI 检索）
-        var PREFILL_ADDRESSES = [
-            '西宁市城西区西山二巷壹号',
-            '西宁市城西区西山二巷金陵小区',
-            '西宁市城西区西山一巷20号',
-            '西宁市城西区西山一巷3号',
-            '西宁市城西区西川南路47号',
-            '西宁市城西区桃李路省委小区',
-            '西宁市城西区西关大街31号质检局家属院',
-            '西宁市城西区昆仑大道西段20号',
-            '西宁市城西区铜仁路36号',
-            '西宁市城西区贾小巷48号',
-            '西宁市城中区时代大道万科时代都会',
-            '西宁市城中区时代大道红星天铂一期',
-            '西宁市城中区香格里拉三期',
-            '西宁市城中区红星天铂二期',
-            '西宁市城中区香格里拉七期',
-            '西宁市城中区黄源大街15号',
-            '西宁市城中区安宁路2号',
-            '西宁市城北区海西路65号九州河畔世家',
-            '西宁市城北区九州河畔世家',
-            '西宁市城东区东村林巷9号'
-        ];
-
-        function bindImportButton() {
-            var btn = document.getElementById('importListBtn');
-            if (!btn) return;
-            btn.addEventListener('click', function () {
-                var ta = document.getElementById('ocrResultText');
-                if (!ta) return;
-                ta.value = PREFILL_ADDRESSES.join('\n');
-                var preview = document.getElementById('ocrImagePreview');
-                if (preview) preview.innerHTML = '<div style="padding:10px;color:#9aa3af;font-size:13px;">已预填 20 个名单地址，核对后点击「批量添加」</div>';
-                var modal = document.getElementById('ocrModal');
-                if (modal) modal.classList.remove('hidden');
-                if (typeof showToast === 'function') showToast('已填入 20 个地址，核对后点击「批量添加」', 'info');
-            });
-        }
-        bindImportButton();
-
-        // 默认搜索范围：青海省 → 西宁市（等下拉选项异步加载完成后自动选中）
-        function waitForOption(selectId, text, timeoutMs, cb) {
-            var start = Date.now();
-            (function poll() {
-                var sel = document.getElementById(selectId);
-                if (sel) {
-                    for (var i = 0; i < sel.options.length; i++) {
-                        if (sel.options[i].textContent === text) {
-                            sel.value = sel.options[i].value;
-                            sel.dispatchEvent(new Event('change', { bubbles: true }));
-                            cb(true);
-                            return;
-                        }
-                    }
-                }
-                if (Date.now() - start > timeoutMs) { cb(false); return; }
-                setTimeout(poll, 500);
-            })();
-        }
-        waitForOption('regionProvince', '青海省', 60000, function (ok) {
-            if (ok) {
-                waitForOption('regionCity', '西宁市', 30000, function (ok2) {
-                    // 区县留空（不限），覆盖全部四个城区
-                });
-            }
-        });
-    })();
     </script>
 </body>
 </html>
