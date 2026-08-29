@@ -518,8 +518,7 @@
                 <label>安全密钥 SecurityJsCode（没有可留空）</label>
                 <input type="text" id="securityCodeInput" placeholder="如没有可留空" aria-label="安全密钥">
                 <div style="display:flex;gap:8px;width:100%;">
-                    <button id="confirmKeyBtn" class="btn-primary btn-large btn-flex" style="white-space:nowrap">进入战场</button>
-                    <button id="diagnoseKeyBtn" class="btn-secondary btn-large" style="flex:0 0 auto;white-space:nowrap;padding:14px 16px;" title="测试 Key 是否有效">🔧 诊断</button>
+                    <button id="confirmKeyBtn" class="btn-primary btn-large btn-flex" style="white-space:nowrap">进入规划</button>
                 </div>
                 <div class="help-text">
                     <p><strong>免费获取密钥（约2分钟）：</strong></p>
@@ -812,13 +811,12 @@
 
         // ===== Init =====
         window.addEventListener('DOMContentLoaded', () => {
-            const savedKey = localStorage.getItem('amap_key') || '';
+            const savedKey = localStorage.getItem('amap_key') || '9bc817c7f776dc1a345b4c17518d2f26';
             const savedSec = localStorage.getItem('amap_security') || '';
             document.getElementById('apiKeyInput').value = savedKey;
             document.getElementById('securityCodeInput').value = savedSec;
 
             document.getElementById('confirmKeyBtn').addEventListener('click', handleKeyConfirm);
-            document.getElementById('diagnoseKeyBtn').addEventListener('click', diagnoseKey);
             document.getElementById('apiKeyInput').addEventListener('keypress', e => {
                 if (e.key === 'Enter') document.getElementById('securityCodeInput').focus();
             });
@@ -860,79 +858,6 @@
         function hideOfflineBanner() {
             const b = document.getElementById('offlineBanner');
             if (b) b.remove();
-        }
-
-        async function diagnoseKey() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            const sec = document.getElementById('securityCodeInput').value.trim();
-            if (!key) { showToast('请先输入 Key 再诊断', 'error'); return; }
-
-            const btn = document.getElementById('diagnoseKeyBtn');
-            btn.textContent = '🔧 诊断中...';
-            btn.disabled = true;
-
-            const results = [];
-
-            // 1. 检查 Key 格式（JS API Key 通常 32 位 hex）
-            if (key.length === 32 && /^[a-f0-9]+$/i.test(key)) {
-                results.push('✅ Key 格式正常（32位 hex）');
-            } else {
-                results.push('⚠️ Key 长度/格式异常——JS API Key 通常为 32 位十六进制字符串');
-            }
-
-            // 2. 用 fetch 测试 Key 能否加载 JS API 脚本
-            try {
-                const testUrl = `https://webapi.amap.com/maps?v=2.0&key=${key}`;
-                const resp = await fetch(testUrl, { method: 'HEAD' });
-
-                if (resp.ok) {
-                    results.push('✅ 高德服务器可达，Key 脚本可加载');
-                } else if (resp.status === 403) {
-                    results.push('❌ 403 禁止访问——Key 类型可能选错了（选了「Web服务」而非「Web端 JS API」）');
-                } else if (resp.status === 401) {
-                    results.push('❌ 401 未授权——Key 可能已被禁用或删除');
-                } else {
-                    results.push(`⚠️ 服务器返回 HTTP ${resp.status}`);
-                }
-            } catch (e) {
-                results.push('❌ 无法连接高德服务器——检查网络或防火墙');
-            }
-
-            // 3. 安全密钥检查
-            if (sec) {
-                results.push('✅ 已填写安全密钥');
-            } else {
-                results.push('⚠️ 未填安全密钥——2021年12月后创建的 JS API Key 必须配安全密钥，否则部分功能不可用');
-            }
-
-            // 4. 域名白名单检查提示
-            results.push('ℹ️ 确认高德控制台里 Key 的「允许访问域名」包含 localhost 和 127.0.0.1');
-
-            // 5. 显示结果
-            const msg = results.join('\n');
-            console.log('=== 高德 Key 诊断结果 ===\n' + msg);
-
-            // 用弹窗显示结果，确保用户看得见
-            const title = '=== 高德 Key 诊断结果 ===';
-            const tip = '如果显示 403，说明 Key 类型仍是「Web服务」或未开通 JS API 权限；请去高德控制台确认服务平台为「Web端(JS API)」。';
-            const fullMsg = [title, '', msg, '', tip].join('\n');
-            console.log(fullMsg);
-            alert(fullMsg);
-
-            // 同时 append 到 modal-body 便于复制
-            let diagBox = document.getElementById('diagResultBox');
-            if (!diagBox) {
-                diagBox = document.createElement('div');
-                diagBox.id = 'diagResultBox';
-                diagBox.style.cssText = 'margin-top:12px;padding:12px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:1.8;white-space:pre-wrap;max-height:280px;overflow-y:auto;';
-                btn.parentElement.parentElement.appendChild(diagBox);
-            }
-            diagBox.textContent = msg;
-            diagBox.style.display = 'block';
-
-            btn.textContent = '🔧 诊断';
-            btn.disabled = false;
-            showToast('诊断完成，请查看下方结果', 'info');
         }
 
         function handleKeyConfirm() {
